@@ -1,4 +1,0 @@
-Record=TopLevelDocument|FileName=Top.SchDoc|SheetNumber=1
-Record=SheetSymbol|SourceDocument=Top.SchDoc|Designator=EMG_SET|SchDesignator=EMG_SET|FileName=EMG.SchDoc|SheetNumber=2|SymbolType=Normal|RawFileName=EMG.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
-Record=SheetSymbol|SourceDocument=Top.SchDoc|Designator=GSR|SchDesignator=GSR|FileName=GSR.SchDoc|SheetNumber=3|SymbolType=Normal|RawFileName=GSR.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
-Record=SheetSymbol|SourceDocument=Top.SchDoc|Designator=Power|SchDesignator=Power|FileName=Power.SchDoc|SheetNumber=4|SymbolType=Normal|RawFileName=Power.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 

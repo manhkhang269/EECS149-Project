@@ -1,21 +1,17 @@
 import asyncio
-from asyncio.tasks import Task
 import collections
-import tkinter
-from tkinter import ttk
-from tkinter import messagebox
-from tkinter.constants import FALSE
+import re
 import sys
+import tkinter
+from tkinter import messagebox, ttk
+from tkinter.constants import FALSE
 
 import bleak
-from bleak.exc import *
-from bleak.backends.client import BaseBleakClient
-from bleak_winrt.windows.foundation import HResult
-import matplotlib
-from matplotlib.figure import Figure
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import numpy
-import re
+from bleak.backends.client import BaseBleakClient
+from bleak.exc import *
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
 
 titleText = "OpenTracker (WIP)"
 diagTitle = "Select Device"

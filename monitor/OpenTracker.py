@@ -1,6 +1,7 @@
 import asyncio
 import collections
 import re
+import struct
 import sys
 import tkinter
 from tkinter import messagebox, ttk
@@ -21,12 +22,7 @@ devAddrFormat = "{dev_name} | {uuid}"
 uuid_base = "32e6{uuid16}-2b22-4db5-a914-43ce41986c70"
 srv_uuid = uuid_base.format(uuid16="1089")
 cmd_uuid = uuid_base.format(uuid16="108a")
-max_red_uuid = uuid_base.format(uuid16="108b")
-max_ir_uuid = uuid_base.format(uuid16="108c")
-gsr_uuid = uuid_base.format(uuid16="108d")
-flex_uuid = uuid_base.format(uuid16="108e")
-emg1_uuid = uuid_base.format(uuid16="108f")
-emg2_uuid = uuid_base.format(uuid16="1090")
+telemetry_uuid = uuid_base.format(uuid16="108b")
 
 class OpenTrackerApp:
     def __init__(self) -> None:
@@ -156,12 +152,13 @@ async def canvasWorker():
 
 async def telemetryWrapper():
     try:
-        appInstance.HR_Red.append(int.from_bytes(await appInstance.BLEDev.read_gatt_char(max_red_uuid), "little", signed=False))
-        appInstance.HR_IR.append(int.from_bytes(await appInstance.BLEDev.read_gatt_char(max_ir_uuid), "little", signed=False))
-        appInstance.GSR.append(int.from_bytes(await appInstance.BLEDev.read_gatt_char(gsr_uuid), "little", signed=False))
-        appInstance.Flex.append(int.from_bytes(await appInstance.BLEDev.read_gatt_char(flex_uuid), "little", signed=False))
-        appInstance.EMG1.append(int.from_bytes(await appInstance.BLEDev.read_gatt_char(emg1_uuid), "little", signed=False))
-        appInstance.EMG2.append(int.from_bytes(await appInstance.BLEDev.read_gatt_char(emg2_uuid), "little", signed=False))
+        red_val, ir_val, gsr_val, flex_val, emg1_val, emg2_val = struct.unpack("<LLHHHH", await appInstance.BLEDev.read_gatt_char(telemetry_uuid))
+        appInstance.HR_Red.append(red_val)
+        appInstance.HR_IR.append(ir_val)
+        appInstance.GSR.append(gsr_val)
+        appInstance.Flex.append(flex_val)
+        appInstance.EMG1.append(emg1_val)
+        appInstance.EMG2.append(emg2_val)
         await canvasWorker()
     except Exception as e:
         print(f"Data fetch failed, possibly because of device disconnect: {e}")
@@ -238,13 +235,8 @@ if __name__ == "__main__":
             asyncio.run(client.connect())
             print(f"MTU is {client.mtu_size}, starting...")
             while True:
-                val_max_red = int.from_bytes(asyncio.run(client.read_gatt_char(max_red_uuid)), "little", signed=False)
-                val_max_ir = int.from_bytes(asyncio.run(client.read_gatt_char(max_ir_uuid)), "little", signed=False)
-                val_gsr = int.from_bytes(asyncio.run(client.read_gatt_char(gsr_uuid)), "little", signed=False)
-                val_flex = int.from_bytes(asyncio.run(client.read_gatt_char(flex_uuid)), "little", signed=False)
-                val_emg1 = int.from_bytes(asyncio.run(client.read_gatt_char(emg1_uuid)), "little", signed=False)
-                val_emg2 = int.from_bytes(asyncio.run(client.read_gatt_char(emg2_uuid)), "little", signed=False)
-                print(f"Red: {val_max_red}, IR: {val_max_ir}, GSR: {val_gsr}, Flex: {val_flex}, EMG1: {val_emg1}, EMG2: {val_emg2}")
+                red_val, ir_val, gsr_val, flex_val, emg1_val, emg2_val = struct.unpack("<LLHHHH", asyncio.run(appInstance.BLEDev.read_gatt_char(telemetry_uuid)))
+                print(f"Red: {red_val}, IR: {ir_val}, GSR: {gsr_val}, Flex: {flex_val}, EMG1: {emg1_val}, EMG2: {emg2_val}")
     else:
         appInstance = OpenTrackerApp()
         appInstance.evloop.run_forever()

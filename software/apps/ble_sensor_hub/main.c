@@ -23,7 +23,7 @@ APP_TIMER_DEF(upd_timer);
 #define ADC_CHN_EMG1 2
 #define ADC_CHN_EMG2 3
 
-#define REFRESH_INTERVAL_MS 200
+#define REFRESH_INTERVAL_MS 100
 
 NRF_TWI_MNGR_DEF(twi_mngr_instance, 5, 0);
 
@@ -33,10 +33,21 @@ static simple_ble_config_t ble_config = {
         .platform_id       = 0x49,    // used as 4th octect in device BLE address
         .device_id         = 0x2041,
         .adv_name          = "DataHub", // used in advertisements if there is room
-        .adv_interval      = MSEC_TO_UNITS(500, UNIT_0_625_MS),
-        .min_conn_interval = MSEC_TO_UNITS(50, UNIT_1_25_MS),
-        .max_conn_interval = MSEC_TO_UNITS(500, UNIT_1_25_MS),
+        .adv_interval      = MSEC_TO_UNITS(100, UNIT_0_625_MS),
+        .min_conn_interval = MSEC_TO_UNITS(10, UNIT_1_25_MS),
+        .max_conn_interval = MSEC_TO_UNITS(200, UNIT_1_25_MS),
 };
+
+static bool alive = false;
+
+typedef struct {
+  uint32_t max_red;
+  uint32_t max_ir;
+  uint16_t gsr;
+  uint16_t flex;
+  uint16_t emg1;
+  uint16_t emg2;
+} packet_t;
 
 // 32e61089-2b22-4db5-a914-43ce41986c70
 static simple_ble_service_t sensing_service = {{
@@ -46,24 +57,9 @@ static simple_ble_service_t sensing_service = {{
 // xxxx<xxxx> -xxxx-xxxx-xxxx-xxxxxxxxxxxx
 static simple_ble_char_t cmd_char = {.uuid16 = 0x108a};
 static uint8_t cmd = 0x00;
-// MAX_RED
-static simple_ble_char_t max_red_char = {.uuid16 = 0x108b};
-static uint32_t max_red_val = 0;
-// MAX_IR
-static simple_ble_char_t max_ir_char = {.uuid16 = 0x108c};
-static uint32_t max_ir_val = 0;
-// GSR
-static simple_ble_char_t gsr_char = {.uuid16 = 0x108d};
-static uint16_t gsr_val = 0x00;
-// Flex
-static simple_ble_char_t flex_char = {.uuid16 = 0x108e};
-static uint16_t flex_val = 0x00;
-// EMG1
-static simple_ble_char_t emg1_char = {.uuid16 = 0x108f};
-static uint16_t emg1_val = 0x00;
-// EMG2
-static simple_ble_char_t emg2_char = {.uuid16 = 0x1090};
-static uint16_t emg2_val = 0x00;
+// Telemetry
+static simple_ble_char_t telemetry_char = {.uuid16 = 0x108b};
+static packet_t buffer;
 
 /*******************************************************************************
  *   State for this application
@@ -78,15 +74,15 @@ void ble_evt_write(ble_evt_t const* p_ble_evt) {
 }
 
 void ble_evt_connected(ble_evt_t const* p_ble_evt) {
-  app_timer_start(upd_timer, APP_TIMER_TICKS(REFRESH_INTERVAL_MS), NULL);
+  alive = true;
 }
 
 void ble_evt_disconnected(ble_evt_t const* p_ble_evt) {
-  app_timer_stop(upd_timer);
+  alive = false;
 }
 
 void ble_error(uint32_t error_code) {
-  printf("(BLE Stack) BLE Error: %zu\n", error_code);
+  printf("(BLE Stack) BLE Error: %lu\n", error_code);
 }
 
 uint16_t sample_value(uint8_t channel) {
@@ -96,23 +92,18 @@ uint16_t sample_value(uint8_t channel) {
 }
 
 void upd_callback() {
-  printf("Polling...\n");
-  //printf("MAXPoll: got %u sample(s)\n", max30102_refresh());
-  //printf("Red: %lu, IR: %lu\n", getFIFORed(), getFIFOIR()); // INOP
-  //max30102_fifo_next();
-  max_red_val = 0; // getred
-  simple_ble_notify_char(&max_red_char);
-  max_ir_val = 0; // getir
-  simple_ble_notify_char(&max_ir_char);
-  gsr_val = sample_value(ADC_CHN_GSR);
-  simple_ble_notify_char(&gsr_char);
-  flex_val = sample_value(ADC_CHN_FLEX);
-  simple_ble_notify_char(&flex_char);
-  emg1_val = sample_value(ADC_CHN_EMG1);
-  simple_ble_notify_char(&emg1_char);
-  emg2_val = sample_value(ADC_CHN_EMG2);
-  simple_ble_notify_char(&emg2_char);
-  printf("End\n");
+  //if (alive) {
+    //printf("MAXPoll: got %u sample(s)\n", max30102_refresh());
+    //printf("Red: %lu, IR: %lu\n", getFIFORed(), getFIFOIR()); // INOP
+    //max30102_fifo_next();
+    buffer.max_red = 0;
+    buffer.max_ir = 0;
+    buffer.gsr = sample_value(ADC_CHN_GSR);
+    buffer.flex = sample_value(ADC_CHN_FLEX);
+    buffer.emg1 = sample_value(ADC_CHN_EMG1);
+    buffer.emg2 = sample_value(ADC_CHN_EMG2);
+    simple_ble_notify_char(&telemetry_char);
+  //}
 }
 
 void saadc_callback (nrfx_saadc_evt_t const * p_event) {
@@ -192,18 +183,14 @@ int main(void) {
   simple_ble_add_service(&sensing_service);
 
   simple_ble_add_characteristic(1, 1, 1, 0, sizeof(cmd), (uint8_t*)&cmd, &sensing_service, &cmd_char);
-  simple_ble_add_characteristic(1, 0, 1, 0, sizeof(max_red_val), (uint8_t*)&max_red_val, &sensing_service, &max_red_char);
-  simple_ble_add_characteristic(1, 0, 1, 0, sizeof(max_ir_val), (uint8_t*)&max_ir_val, &sensing_service, &max_ir_char);
-  simple_ble_add_characteristic(1, 0, 1, 0, sizeof(gsr_val), (uint8_t*)&gsr_val, &sensing_service, &gsr_char);
-  simple_ble_add_characteristic(1, 0, 1, 0, sizeof(flex_val), (uint8_t*)&flex_val, &sensing_service, &flex_char);
-  simple_ble_add_characteristic(1, 0, 1, 0, sizeof(emg1_val), (uint8_t*)&emg1_val, &sensing_service, &emg1_char);
-  simple_ble_add_characteristic(1, 0, 1, 0, sizeof(emg2_val), (uint8_t*)&emg2_val, &sensing_service, &emg2_char);
+  simple_ble_add_characteristic(1, 0, 1, 0, sizeof(packet_t), (uint8_t*)&buffer, &sensing_service, &telemetry_char);
 
   // Start Advertising
   simple_ble_adv_only_name();
 
   app_timer_init();
   app_timer_create(&upd_timer, APP_TIMER_MODE_REPEATED, (app_timer_timeout_handler_t) upd_callback);
+  app_timer_start(upd_timer, APP_TIMER_TICKS(REFRESH_INTERVAL_MS), NULL);
 
   while(true) {
     power_manage();

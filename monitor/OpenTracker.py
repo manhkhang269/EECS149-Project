@@ -23,6 +23,7 @@ uuid_base = "32e6{uuid16}-2b22-4db5-a914-43ce41986c70"
 srv_uuid = uuid_base.format(uuid16="1089")
 cmd_uuid = uuid_base.format(uuid16="108a")
 telemetry_uuid = uuid_base.format(uuid16="108b")
+refresh_interval_ms = 50
 
 class OpenTrackerApp:
     def __init__(self) -> None:
@@ -113,17 +114,17 @@ class OpenTrackerApp:
     def deviceScan(self) -> None:
         self.evloop.create_task(deviceScanWrapper())
         if self.scanUpdate:
-            self.connectDiag.after(3000, self.deviceScan)
+            self.connectDiag.after(5000, self.deviceScan)
     def tryConnect(self, dev : str) -> None:
         # format is name | addr
         self.evloop.create_task(tryConnectWrapper(dev))
     def update(self) -> None:
+        self.mainWindow.after(refresh_interval_ms, self.update)
         self.connectionStatusTxt.set(connText.format(device="None" if self.BLEDev == None else self.BLEDev.address))
         if self.BLEDev != None:
             self.evloop.create_task(connUpdateWrapper())
         if self.BLEDev != None:
             self.evloop.create_task(telemetryWrapper())
-        self.mainWindow.after(200, self.update)
     def sendCmd(self) -> None:
         pass
 
@@ -132,7 +133,7 @@ appInstance : OpenTrackerApp = None
 async def idletask():
     while appInstance.alive:
         appInstance.mainWindow.update()
-        await asyncio.sleep(1/30)
+        await asyncio.sleep(0)
 
 async def canvasWorker():
     appInstance.line_hr_red.set_data(appInstance.t_hr, numpy.array(list(appInstance.HR_Red)))
@@ -166,6 +167,7 @@ async def telemetryWrapper():
 
 async def deviceScanWrapper():
     try:
+        appInstance.connectSelector.selection_clear(0, "end")
         appInstance.connectSelectorList.set([devAddrFormat.format(dev_name=dev.name, uuid=dev.address) for dev in await bleak.BleakScanner.discover(timeout=2)])
     except OSError:
         messagebox.showerror(title="Bluetooth Adapter Exception", message="Check if bluetooth adapter is working.")
@@ -181,6 +183,8 @@ async def tryConnectWrapper(devstr : str):
         appInstance.BLEDev = dev
         appInstance.cmdSendBtn.state(["!disabled"])
         appInstance.discBtn.state(["!disabled"])
+        if appInstance.connectDiag != None:
+            destoryDialog()
     except asyncio.exceptions.TimeoutError as e:
         print(f"Timeout: {e}")
         appInstance.BLEDev = None

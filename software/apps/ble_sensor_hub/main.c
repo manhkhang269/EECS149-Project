@@ -23,7 +23,7 @@ APP_TIMER_DEF(upd_timer);
 #define ADC_CHN_EMG1 2
 #define ADC_CHN_EMG2 3
 
-#define REFRESH_INTERVAL_MS 100
+#define REFRESH_INTERVAL_MS 50
 
 NRF_TWI_MNGR_DEF(twi_mngr_instance, 5, 0);
 

@@ -71,7 +71,7 @@ class OpenTrackerApp:
         self.cmdSelector.state(["readonly"])
         self.cmdSelector["values"] = cmdChoice
         self.cmdSelector.grid(row=0, column=4, columnspan=2)
-        self.cmdSendBtn = ttk.Button(self.ctrlPane, text="Send")
+        self.cmdSendBtn = ttk.Button(self.ctrlPane, text="Send", command=lambda: self.sendCmd())
         self.cmdSendBtn.state(["disabled"])
         self.cmdSendBtn.grid(row=0, column=6)
         #
@@ -167,7 +167,7 @@ async def telemetryWrapper():
         appInstance.EMG1.append(int.from_bytes(await appInstance.BLEDev.read_gatt_char(emg1_uuid), "little", signed=False))
         appInstance.EMG2.append(int.from_bytes(await appInstance.BLEDev.read_gatt_char(emg2_uuid), "little", signed=False))
         await canvasWorker()
-    except BleakError as e:
+    except Exception as e:
         print(f"Data fetch failed, possibly because of device disconnect: {e}")
         pass
 
@@ -240,6 +240,7 @@ if __name__ == "__main__":
         else:
             client = bleak.BleakClient(sys.argv[2])
             asyncio.run(client.connect())
+            print(f"MTU is {client.mtu_size}, starting...")
             while True:
                 val_max_red = int.from_bytes(asyncio.run(client.read_gatt_char(max_red_uuid)), "little", signed=False)
                 val_max_ir = int.from_bytes(asyncio.run(client.read_gatt_char(max_ir_uuid)), "little", signed=False)
